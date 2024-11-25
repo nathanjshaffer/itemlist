@@ -1,0 +1,14 @@
+from setuptools import setup, find_packages
+
+setup(name='itemlist',
+      version='0.1',
+      description='Nicegui to fetch sqlalchemy models andlist them',
+      url='https://github.com/nathanjshaffer/itemlist',
+      author='Nathan Shaffer',
+      author_email='nathanjshaffer@gmail.com',
+      license='MIT',
+      packages=find_packages(where='src'),
+      package_dir={
+          'itemlist': 'src/itemlist',
+      },
+      zip_safe=False)
