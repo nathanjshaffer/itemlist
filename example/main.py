@@ -66,16 +66,16 @@ class DateTimePicker(ui.input):
 
 @ui.page('/')
 def index():
-    ui.link('Employees', employees)
-    ui.link('Locations', locations)
-    ui.link('Shifts', shifts)
+    ui.link('Employees', employees_page)
+    ui.link('Locations', locations_page)
+    ui.link('Shifts', shifts_page)
 
 
 @ui.page('/employees')
-def employees():
+def employees_page():
     ui.link('Home', index)
 
-    with FieldList() as fields:
+    with FieldList() as employees:
         with RelationPaired('', col=models.Employee.user_id):
             Value('Name', models.User.name)
             with RelationList(label='Address', col=models.UserAddress.user_id):
@@ -88,33 +88,33 @@ def employees():
             col=models.Employee.location_id,
             relation_chain='Location.name',
         )
-    ItemList("Employees", models.Employee, field_list=fields)
+    ItemList("Employees", models.Employee, field_list=employees)
 
 
 @ui.page('/locations')
-def locations():
+def locations_page():
     ui.link('Home', index)
 
-    with FieldList() as fields:
+    with FieldList() as locations:
         Value('Name', models.Location.name)
         with RelationPaired(label='Location Address', col=models.Location.address_id):
             Value('Street', models.Address.street)
             Value('City', models.Address.city)
             RelationSingle('State', models.Address.state, options=[state.name for state in us.states.STATES])
 
-    ItemList("Location", models.Location, field_list=fields)
+    ItemList("Location", models.Location, field_list=locations)
 
 
 @ui.page('/shifts')
-def shifts():
+def shifts_page():
     ui.link('Home', index)
 
-    with FieldList() as fields:
+    with FieldList() as employee_shifts:
         RelationSingle('Employee', col=models.EmployeeShift.employee_id, relation_chain='Employee.user.name')
         Value('Clock In', models.EmployeeShift.clock_in, type=DateTimePicker)
         Value('Clock Out', models.EmployeeShift.clock_out, type=DateTimePicker)
 
-    ItemList("Shifts", models.EmployeeShift, field_list=fields)
+    ItemList("Shifts", models.EmployeeShift, field_list=employee_shifts)
 
 
 ui.run()
