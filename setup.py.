@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-setup(name='itemlist',
+setup(name='nice-alchemy',
       version='0.1',
       description='Nicegui to fetch sqlalchemy models andlist them',
       url='https://github.com/nathanjshaffer/itemlist',
@@ -9,6 +9,6 @@ setup(name='itemlist',
       license='MIT',
       packages=find_packages(where='src'),
       package_dir={
-          'itemlist': 'src/itemlist',
+          'nice-alchemy': 'src/nice_alchemy',
       },
       zip_safe=False)

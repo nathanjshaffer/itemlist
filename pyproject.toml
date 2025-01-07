@@ -3,5 +3,5 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "itemlist"
+name = "nice-alchemy"
 version = "0.1"
