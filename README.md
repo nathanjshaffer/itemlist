@@ -48,13 +48,20 @@ nice_alchemy.set_sessionmaker(sessionmaker(engine, expire_on_commit=False))
 
 ## Field Types
 
+  ### Static
+      A single element that displays a static value.  Is notconnected to a database value.
+
+    properties:
+      label:  Value to display in the field
+      type: nicegui element class to generate. default: ui.label
+
   ### Value
-    A single column that is definied by a value. 
+    A single column that is definied by a data value. 
     
     properties:
       label:  labe to display for field
       col: the column property of the sqlachemy model ex: User.name
-      type: nicegui element class to generate default: ui.input
+      type: nicegui element class to generate. default: ui.input
   ### RelationPaired
     Relation grouping for a one:one foreign key.  THis does not take care of any deleting/updating of the related row in the foreign table.  use triggers on the db server to accomplish.  
     This field type allows for editing related rows accross tables as if it were all in one table.
