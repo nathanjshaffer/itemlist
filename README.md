@@ -33,7 +33,8 @@ FieldList is a context manager to build template for the ItemList to query and e
 each child is a Field that defines a single or group of related database columns.  It should be noted that the relationships are not limited to a single table, but much more complex relationships can be defined and managed.
 
 to use this nice-alchemy, take note of the following functions, set_model_base & set_sessionmaker:
-```
+
+```py
 class Base(sqlalchemy.orm.DeclarativeBase):
   pass
 
@@ -43,7 +44,7 @@ engine = sqlalchemy.create_engine(f'sqlite:///example.db)
 nice_alchemy.set_model_base(models.Base)
 # set the global database session maker object fot nice_alchemy to access data
 nice_alchemy.set_sessionmaker(sessionmaker(engine, expire_on_commit=False))
-```py
+```
 
 ## Field Types
 
