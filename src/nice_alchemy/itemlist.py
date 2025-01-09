@@ -78,12 +78,31 @@ class ItemList(ui.card):
                 if key not in refreshed and hasattr(func, 'refresh'):
                     refreshed.append(key)
                     func.refresh()
-
+    @ui.refreshable
     def create_filter_ui(self):
+        @ui.refreshable
+        def create_fields():
+            with self.db() as session:
+                self.process_input_fields(self.filter_elements, self.filter_row, self.filter_row,
+                                        self.field_list.fields, session)
+
+        def create_filter():
+            filter, count = create_filter_stmt(select(self.model), self.filter_row, self.field_list.fields)
+            if count:
+                self.filter = filter
+            self.createList.refresh()
+            self.filter_icon.set_name('filter_list')
+
+        def clear_filter():
+            self.filter = None
+            self.createList.refresh()
+            self.filter_icon.set_name('filter_list_off')
+            self.filter_row = self.model()
+            create_fields.refresh()
+
         with ui.row() as head:
             ui.label(self.listName)
             ui.space()
-            # with ui.menu().props('no-parent-event') as self.filter_menu:
             def toggle():
                 self.filter_menu.set_visibility(not self.filter_menu.visible)
 
@@ -91,32 +110,17 @@ class ItemList(ui.card):
             with ui.card() as self.filter_menu:
                 with ui.row():
                     self.filter_row = self.model()
-                    with self.db() as session:
-                        self.process_input_fields(self.filter_elements, self.filter_row, self.filter_row,
-                                                  self.field_list.fields, session)
+                    create_fields()
+                    # with self.db() as session:
+                    #     self.process_input_fields(self.filter_elements, self.filter_row, self.filter_row,
+                    #                               self.field_list.fields, session)
                 with ui.row().classes('justify-end'):
                     ui.button('Close', on_click=toggle).props('flat')
-                    ui.button('Filter', on_click=self.create_filter).props('flat')
-                    ui.button('Clear', on_click=self.clear_filter).props('flat')
+                    ui.button('Filter', on_click=create_filter).props('flat')
+                    ui.button('Clear', on_click=clear_filter).props('flat')
             self.filter_menu.set_visibility(False)
         ui.separator()
 
-
-    def create_filter(self):
-        filter, count = create_filter_stmt(select(self.model), self.filter_row, self.field_list.fields)
-        if count:
-            self.filter = filter
-        self.createList.refresh()
-        self.filter_icon.set_name('filter_list')
-
-    def clear_filter(self):
-        self.filter = None
-        self.createList.refresh()
-        self.filter_icon.set_name('filter_list_off')
-
-
-
-        # self.filter_menu.close()
 
     def process_input_fields(self, element_row, root, data_row, fields, session):
         for field in fields:

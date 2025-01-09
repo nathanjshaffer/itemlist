@@ -1,19 +1,27 @@
-from nicegui import app, ui, binding
-from nice_alchemy import Field, Relation, Value, FilterableField, RelationPaired, RelationSingle, RelationList, set_model_base, set_sessionmaker
-from nice_alchemy import FieldList, ItemList
-import models
-import us
 
 import sqlalchemy
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy_utils import database_exists, create_database
+from nicegui import app, ui, binding
+
+# library to get state names
+import us
+
+
+from nice_alchemy import Value, RelationPaired, RelationSingle, RelationList, FieldList, ItemList
+import nice_alchemy
+import models
 
 engine = sqlalchemy.create_engine(f'sqlite:///example.db', echo=False, isolation_level="AUTOCOMMIT")
 if not database_exists(engine.url):
     create_database(engine.url)
 
-set_sessionmaker(sessionmaker(engine, expire_on_commit=False))
-set_model_base(models.Base)
+# nice_alchemy needs to know what the base class is for sqlalchemy models
+nice_alchemy.set_model_base(models.Base)
+# set the global database session maker object fot nice_alchemy to access data
+nice_alchemy.set_sessionmaker(sessionmaker(engine, expire_on_commit=False))
+
+
 models.Base.metadata.create_all(engine)
 
 
@@ -76,15 +84,15 @@ def employees_page():
     ui.link('Home', index)
 
     with FieldList() as employees:
-        with RelationPaired('', col=models.Employee.user_id):
-            Value('Name', models.User.name)
-            with RelationList(label='Address', col=models.UserAddress.user_id):
-                with RelationPaired('', col=models.UserAddress.address_id):
-                    Value('Street', models.Address.street)
-                    Value('City', models.Address.city)
-                    RelationSingle('State', models.Address.state, options=[state.name for state in us.states.STATES])
+        with RelationPaired(col=models.Employee.user_id):
+            Value(label='Name', col=models.User.name)
+            with RelationList(label='Employee Address', col=models.UserAddress.user_id):
+                with RelationPaired(col=models.UserAddress.address_id):
+                    Value(label='Street',col=models.Address.street)
+                    Value(label='City', col=models.Address.city)
+                    RelationSingle(label='State', col=models.Address.state, options=[state.name for state in us.states.STATES])
         RelationSingle(
-            'Location',
+            label='Location',
             col=models.Employee.location_id,
             relation_chain='Location.name',
         )
@@ -96,11 +104,11 @@ def locations_page():
     ui.link('Home', index)
 
     with FieldList() as locations:
-        Value('Name', models.Location.name)
-        with RelationPaired(label='Location Address', col=models.Location.address_id):
-            Value('Street', models.Address.street)
-            Value('City', models.Address.city)
-            RelationSingle('State', models.Address.state, options=[state.name for state in us.states.STATES])
+        Value(label='Name', col=models.Location.name)
+        with RelationPaired(col=models.Location.address_id):
+            Value(label='Street',col=models.Address.street)
+            Value(label='City', col=models.Address.city)
+            RelationSingle(label='State', col=models.Address.state, options=[state.name for state in us.states.STATES])
 
     ItemList("Location", models.Location, field_list=locations)
 
@@ -110,9 +118,9 @@ def shifts_page():
     ui.link('Home', index)
 
     with FieldList() as employee_shifts:
-        RelationSingle('Employee', col=models.EmployeeShift.employee_id, relation_chain='Employee.user.name')
-        Value('Clock In', models.EmployeeShift.clock_in, type=DateTimePicker)
-        Value('Clock Out', models.EmployeeShift.clock_out, type=DateTimePicker)
+        RelationSingle(label='Employee', col=models.EmployeeShift.employee_id, relation_chain='Employee.user.name')
+        Value(label='Clock In', col=models.EmployeeShift.clock_in, type=DateTimePicker)
+        Value(label='Clock Out', col=models.EmployeeShift.clock_out, type=DateTimePicker)
 
     ItemList("Shifts", models.EmployeeShift, field_list=employee_shifts)
 

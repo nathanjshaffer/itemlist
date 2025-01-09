@@ -124,7 +124,6 @@ class ChipToggle(ui.chip):
 
 @dataclass
 class Field(context.FieldContextVisitor):
-    bind_values = {}
     _: KW_ONLY
     event_handlers: list = None
     backward: callable = None
@@ -133,6 +132,7 @@ class Field(context.FieldContextVisitor):
 
     def __post_init__(self):
         context.FieldContextVisitor.__init__(self)
+        bind_values = {}
 
     def set_source_field_value(self, value):
         Field.bind_values[self.col_prop] = value
@@ -167,13 +167,15 @@ class Field(context.FieldContextVisitor):
 
 @dataclass
 class Relation(Field):
+    _: KW_ONLY
+    col: object
+    label: str = ''
+
     def __post_init__(self):
         Field.__post_init__(self)
         self.model = fk_class(self.col)
         self.col_prop = get_prop_by_column(self.col)
 
-    label: str
-    col: object
 
 
 @dataclass
@@ -209,8 +211,8 @@ def update_list_options(target_field, element, session, value=None):
     if hasattr(target_field, 'source'):
         target_field.source.set_source_field_value(value)
 
-    if target_field.stmt is not None:
-        stmt = select(target_field.model).from_statement(target_field.stmt)
+    if target_field.filter is not None:
+        stmt = select(target_field.model).from_statement(target_field.filter)
     else:
         stmt = select(target_field.model)
     with session.no_autoflush:
@@ -232,9 +234,12 @@ class FilterableField(Relation):
     _: KW_ONLY
     options: list = None
     option_data: dict = None
+    filter: object = None
 
     def __post_init__(self):
         Relation.__post_init__(self)
+        if not filter:
+            self.filter = select(self.model)
 
     def bind_source(self, source):
         param = source.create_bindparam()
@@ -268,13 +273,11 @@ class RelationPaired(Relation, context.FieldList):  # 1:1 relationship
         context.FieldList.__init__(self)
 
     def get_backref(self, model):
-        # print(model, self.model)
         self.rel_attr = get_backref(model, self.model)
 
     def create_element(self, element_row, data_row, backref=None):
         if backref:
             self.get_backref(backref)
-        # print(self.rel_attr)
         if getattr(data_row, self.rel_attr) is None:
             att_item = self.model()
             setattr(data_row, self.rel_attr, att_item)
@@ -290,7 +293,6 @@ class RelationSingle(FilterableField):  # m:1 relationship
 
     def __post_init__(self):
         FilterableField.__post_init__(self)
-        self.stmt = select(self.model)
 
     def get_backref(self, model):
         self.rel_attr = get_backref(model, self.model)
@@ -327,7 +329,7 @@ class RelationList(FilterableField, context.FieldList):  # m:m relationship
         FilterableField.__post_init__(self)
         context.FieldList.__init__(self)
         self.model = get_class_by_column(self.col)
-        self.stmt = select(self.model)
+        self.filter = select(self.model)
 
     def get_backref(self, model):
         self.rel_attr = get_backref(self.model, model)
@@ -343,8 +345,8 @@ class RelationList(FilterableField, context.FieldList):  # m:m relationship
                     for pk in get_pk_names(data_item):
                         filter = self.col == getattr(data_item, pk)
                         filter = filter & filter if filter else filter
-                    if self.stmt is not None:
-                        stmt = self.stmt.where(filter)
+                    if self.filter is not None:
+                        stmt = self.filter.where(filter)
                         stmt = select(self.model).from_statement(stmt)
                     else:
                         stmt = select(self.model).join.where(filter)
@@ -367,26 +369,21 @@ class RelationList(FilterableField, context.FieldList):  # m:m relationship
 
 
 def create_filter_stmt(stmt, data_row, fields):
-    # filter = select(parent)
     count = 0
     for field in fields:
         if isinstance(field, Value):
             if getattr(data_row, field.col_prop):
                 stmt = stmt.where(field.col.like(f'%{getattr(data_row, field.col_prop)}%'))
                 count += 1
-                # stmt = stmt.where(field.col == getattr(data_row, field.col_prop))
         elif isinstance(field, RelationPaired):
-
             join, jcount = create_filter_stmt(stmt.join(get_model_from_row(getattr(data_row, field.rel_attr))),
                                               getattr(data_row, field.rel_attr), field.fields)
-
             if jcount:
                 stmt = join
                 count += 1
 
         elif isinstance(field, RelationSingle):
             if getattr(data_row, field.col_prop):
-                # print('single_prop', int(getattr(data_row, field.col_prop)))
                 stmt = stmt.where(field.col == getattr(data_row, field.col_prop))
                 count += 1
 
