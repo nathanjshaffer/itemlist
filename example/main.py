@@ -85,7 +85,6 @@ def employees_page():
 
     with FieldList() as employees:
         with RelationPaired(col=models.Employee.user_id):
-            Static(label="lkasndflaj")
             Value(label='Name', col=models.User.name)
             with RelationList(label='Employee Address', col=models.UserAddress.user_id):
                 with RelationPaired(col=models.UserAddress.address_id):
