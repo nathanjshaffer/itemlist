@@ -2,24 +2,26 @@
 
 an attempt at creating a templating engine to connect nicegui elements to a datasource via sqlachemy
 
+![Screenshot of ItemList](https://github.com/nathanjshaffer/nice-alchemy/blob/master/example/img/Itemlist_screenshot.png)
+
 example app and database model is in the example directory
 
-here is an example of usage for a set of data using the ItemList class:
-```
+The screen shot above was produced with the code below.  It uses the ItemList class:
+```py
 @ui.page('/employees')
 def employees():
     ui.link('Home', index)
 
     with FieldList() as fields:
         with RelationPaired('', col=models.Employee.user_id):
-            Value('Name', models.User.name)
+            Value(label='Name', models.User.name)
             with RelationList(label='Address', col=models.UserAddress.user_id):
-                with RelationPaired('', col=models.UserAddress.address_id):
-                    Value('Street', models.Address.street)
-                    Value('City', models.Address.city)
-                    RelationSingle('State', models.Address.state, options=[state.name for state in us.states.STATES])
+                with RelationPaired(col=models.UserAddress.address_id):
+                    Value(label='Street', models.Address.street)
+                    Value(label='City', models.Address.city)
+                    RelationSingle(label='State', models.Address.state, options=[state.name for state in us.states.STATES])
         RelationSingle(
-            'Location',
+            label='Location',
             col=models.Employee.location_id,
             relation_chain='Location.name',
         )
@@ -30,15 +32,36 @@ FieldList is a context manager to build template for the ItemList to query and e
 
 each child is a Field that defines a single or group of related database columns.  It should be noted that the relationships are not limited to a single table, but much more complex relationships can be defined and managed.
 
+to use this nice-alchemy, take note of the following functions, set_model_base & set_sessionmaker:
+
+```py
+class Base(sqlalchemy.orm.DeclarativeBase):
+  pass
+
+engine = sqlalchemy.create_engine(f'sqlite:///example.db)
+
+# nice_alchemy needs to know what the base class is for sqlalchemy models
+nice_alchemy.set_model_base(models.Base)
+# set the global database session maker object fot nice_alchemy to access data
+nice_alchemy.set_sessionmaker(sessionmaker(engine, expire_on_commit=False))
+```
+
 ## Field Types
 
+  ### Static
+      A single element that displays a static value.  Is notconnected to a database value.
+
+    properties:
+      label:  Value to display in the field
+      type: nicegui element class to generate. default: ui.label
+
   ### Value
-    A single column that is definied by a value. 
+    A single column that is definied by a data value. 
     
     properties:
       label:  labe to display for field
       col: the column property of the sqlachemy model ex: User.name
-      type: nicegui element class to generate default: ui.input
+      type: nicegui element class to generate. default: ui.input
   ### RelationPaired
     Relation grouping for a one:one foreign key.  THis does not take care of any deleting/updating of the related row in the foreign table.  use triggers on the db server to accomplish.  
     This field type allows for editing related rows accross tables as if it were all in one table.
