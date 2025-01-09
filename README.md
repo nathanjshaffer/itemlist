@@ -14,14 +14,14 @@ def employees():
 
     with FieldList() as fields:
         with RelationPaired('', col=models.Employee.user_id):
-            Value('Name', models.User.name)
+            Value(label='Name', models.User.name)
             with RelationList(label='Address', col=models.UserAddress.user_id):
-                with RelationPaired('', col=models.UserAddress.address_id):
-                    Value('Street', models.Address.street)
-                    Value('City', models.Address.city)
-                    RelationSingle('State', models.Address.state, options=[state.name for state in us.states.STATES])
+                with RelationPaired(col=models.UserAddress.address_id):
+                    Value(label='Street', models.Address.street)
+                    Value(label='City', models.Address.city)
+                    RelationSingle(label='State', models.Address.state, options=[state.name for state in us.states.STATES])
         RelationSingle(
-            'Location',
+            label='Location',
             col=models.Employee.location_id,
             relation_chain='Location.name',
         )
