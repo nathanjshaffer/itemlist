@@ -6,7 +6,7 @@ an attempt at creating a templating engine to connect nicegui elements to a data
 
 example app and database model is in the example directory
 
-here is an example of usage for a set of data using the ItemList class:
+The screen shot above was produced with the code below.  It uses the ItemList class:
 ```py
 @ui.page('/employees')
 def employees():
