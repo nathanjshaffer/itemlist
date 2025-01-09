@@ -18,43 +18,44 @@ from nice_alchemy.fields import get_sessionmaker, get_pk_names, get_class_by_col
 
 
 class ItemList(ui.card):
-    def __init__(self,
-                 label,
-                 model,
-                 *args,
-                 session=None,
-                 field_list=None,
-                 stmt=None,
-                 on_edit=None,
-                 parent=None,
-                 **kwargs):
+    def __init__(self, label, model, *args, session=None, field_list=None, filter=None, parent_row=None, **kwargs):
         ui.card.__init__(self, **kwargs)
+
+        self.listName = label
+        self.model = model
+        self.session = session
         self.field_list = field_list
+        self.filter_stmt = filter
+        self.parent = parent_row
+
+        self.db = get_sessionmaker()
+
         if 'refresh_model_list' not in app.storage.client:
             app.storage.client['refresh_model_list'] = {}
         self.refresh_model_list = []
-        self.listName = label
-        self.model = model
-        self.db = get_sessionmaker()
-        self.session = session
-        self.input_elements = {}
-        self.filter_elements = {}
-        self.input_row = None
-        filter_row = None
-        self.createItemRow = None
-        self.on_edit = on_edit
-        self.select_box_options = {}
-        self.stmt = stmt
-        if self.stmt is None:
-            self.stmt = select(self.model)
-        self.filter = None
-        self.parent = parent
-        with self:
 
+        # ui dropdown filter selection
+        self.filter_elements = {}
+        filter_row = None
+        self.ui_filter_stmt = None
+
+        if self.filter_stmt is None:
+            self.filter_stmt = select(self.model)
+
+        # data creation elements
+        self.create_item_ui_row = None
+        self.create_item_row = None
+        self.create_item_elements = {}
+
+        # data editing elements
+
+        self.select_box_options = {}
+        # list of modified rows
+        self.modified = {}
+
+        with self:
             self.create_filter_ui()
             self.createList()
-
-        self.modified = {}
 
     def addRefreshItem(self, model, refreshable):
         if type(refreshable) == ui.refreshable:
@@ -78,23 +79,23 @@ class ItemList(ui.card):
                 if key not in refreshed and hasattr(func, 'refresh'):
                     refreshed.append(key)
                     func.refresh()
-    @ui.refreshable
+
     def create_filter_ui(self):
         @ui.refreshable
         def create_fields():
             with self.db() as session:
                 self.process_input_fields(self.filter_elements, self.filter_row, self.filter_row,
-                                        self.field_list.fields, session)
+                                          self.field_list.fields, session)
 
         def create_filter():
             filter, count = create_filter_stmt(select(self.model), self.filter_row, self.field_list.fields)
             if count:
-                self.filter = filter
+                self.ui_filter_stmt = filter
             self.createList.refresh()
             self.filter_icon.set_name('filter_list')
 
         def clear_filter():
-            self.filter = None
+            self.ui_filter_stmt = None
             self.createList.refresh()
             self.filter_icon.set_name('filter_list_off')
             self.filter_row = self.model()
@@ -103,6 +104,7 @@ class ItemList(ui.card):
         with ui.row() as head:
             ui.label(self.listName)
             ui.space()
+
             def toggle():
                 self.filter_menu.set_visibility(not self.filter_menu.visible)
 
@@ -111,9 +113,6 @@ class ItemList(ui.card):
                 with ui.row():
                     self.filter_row = self.model()
                     create_fields()
-                    # with self.db() as session:
-                    #     self.process_input_fields(self.filter_elements, self.filter_row, self.filter_row,
-                    #                               self.field_list.fields, session)
                 with ui.row().classes('justify-end'):
                     ui.button('Close', on_click=toggle).props('flat')
                     ui.button('Filter', on_click=create_filter).props('flat')
@@ -121,26 +120,22 @@ class ItemList(ui.card):
             self.filter_menu.set_visibility(False)
         ui.separator()
 
-
     def process_input_fields(self, element_row, root, data_row, fields, session):
         for field in fields:
-            if isinstance(field, Value):
-                field.create_element(element_row,
-                                     data_row,
-                                     event_handlers=[('keydown.enter', lambda f=field: self.createItem(f))])
+            field.create(element_row,
+                         data_row,
+                         backref=self.model,
+                         session=session,
+                         event_handlers=[('keydown.enter', lambda f=field: self.createItem(f))])
 
-            elif isinstance(field, RelationPaired):
-                field.create_element(element_row, data_row, backref=self.model)
-                self.process_input_fields(element_row, root, getattr(data_row, field.rel_attr), field.fields, self.session)
+            if isinstance(field, RelationPaired):
+                self.process_input_fields(element_row, root, getattr(data_row, field.rel_attr), field.fields,
+                                          self.session)
                 self.addRefreshItem(field.model, self.createList)
 
             elif isinstance(field, RelationSingle):
-                field.create_element(element_row, data_row, session, backref=self.model)
-
                 self.addRefreshItem(field.model, self.createList)
 
-            elif isinstance(field, RelationList):
-                field.get_backref(self.model)
 
     @ui.refreshable
     def createList(self):
@@ -151,49 +146,57 @@ class ItemList(ui.card):
 
             row_elements = {}
             for field in fields:
-                if isinstance(field, Value):
-                    field.create_element(row_elements,
-                                         data_row,
-                                         event_handlers=[('keydown.enter', lambda i=root: self.saveItem(i)),
-                                                         ('update:modelValue', modify_row)])
+                field.create_row_editor_element(row_elements,
+                                     data_row,
+                                     session=self.session,
+                                     parent_element=list_row_container,
+                                     event_handlers=[('keydown.enter', lambda i=root: self.saveItem(i)),
+                                                     ('update:modelValue', modify_row)])
 
-                elif isinstance(field, RelationPaired):
-                    print(data_row)
+                #
+                # if isinstance(field, Value):
+                #     field.create_row_editor_element(row_elements,
+                #                          data_row,
+                #                          event_handlers=[('keydown.enter', lambda i=root: self.saveItem(i)),
+                #                                          ('update:modelValue', modify_row)])
+
+                if isinstance(field, RelationPaired):
+                    # print(data_row)
                     att_item = getattr(data_row, field.rel_attr)
                     if att_item:
                         process_row_fields(root, att_item, field.fields, list_row_container)
 
-                elif isinstance(field, RelationSingle):
-                    field.create_element(row_elements,
-                                         data_row,
-                                         self.session,
-                                         event_handlers=[('update:modelValue', modify_row)])
-
-                elif isinstance(field, RelationList):
-                    field.create_element(row_elements, data_row, self.session, parent_element=list_row_container)
+                # elif isinstance(field, RelationSingle):
+                #     field.create_row_editor_element(row_elements,
+                #                          data_row,
+                #                          self.session,
+                #                          event_handlers=[('update:modelValue', modify_row)])
+                #
+                # elif isinstance(field, RelationList):
+                #     field.create_row_editor_element(row_elements, data_row, self.session, parent_element=list_row_container)
 
         if not self.session:
             self.session = self.db()
         with self.session:
             self.addRefreshItem(self.model, self.createList)
-            stmt = self.stmt
-            if self.filter is not None:
-                stmt = stmt.intersect(self.filter)
+            stmt = self.filter_stmt
+            if self.ui_filter_stmt is not None:
+                stmt = stmt.intersect(self.ui_filter_stmt)
                 stmt = select(self.model).from_statement(stmt)
-            # scal = self.session.scalars?(stmt)
 
             items = self.session.scalars(stmt).all()
             self.session.commit()
             with ui.card():
-                self.createItemRow = ui.row().classes('center')
-                with self.createItemRow:
+                ui.label('Create New')
+                self.create_item_ui_row = ui.row().classes('center')
+                with self.create_item_ui_row:
 
-                    self.input_row = self.model()
+                    self.create_item_row = self.model()
                     if self.parent:
-                        setattr(self.input_row, self.field_list.col_prop,
+                        setattr(self.create_item_row, self.field_list.col_prop,
                                 getattr(self.parent,
                                         get_pk_names(self.parent)[0]))
-                    self.process_input_fields(self.input_elements, self.input_row, self.input_row,
+                    self.process_input_fields(self.create_item_elements, self.create_item_row, self.create_item_row,
                                               self.field_list.fields, self.session)
 
                     ui.button(on_click=lambda: self.createItem(), icon='add').props('flat').classes('ml-auto')
@@ -224,7 +227,7 @@ class ItemList(ui.card):
                 session.add(data_row)
                 session.commit()
 
-            process_fields(self.field_list.fields, self.input_row)
+            process_fields(self.field_list.fields, self.create_item_row)
 
             session.commit()
 

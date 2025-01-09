@@ -8,7 +8,7 @@ from nicegui import app, ui, binding
 import us
 
 
-from nice_alchemy import Value, RelationPaired, RelationSingle, RelationList, FieldList, ItemList
+from nice_alchemy import Value, RelationPaired, RelationSingle, RelationList, FieldList, ItemList, Static
 import nice_alchemy
 import models
 
@@ -85,6 +85,7 @@ def employees_page():
 
     with FieldList() as employees:
         with RelationPaired(col=models.Employee.user_id):
+            Static(label="lkasndflaj")
             Value(label='Name', col=models.User.name)
             with RelationList(label='Employee Address', col=models.UserAddress.user_id):
                 with RelationPaired(col=models.UserAddress.address_id):

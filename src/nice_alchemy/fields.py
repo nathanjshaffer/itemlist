@@ -177,6 +177,22 @@ class Relation(Field):
         self.col_prop = get_prop_by_column(self.col)
 
 
+@dataclass
+class Static(Field):
+    _: KW_ONLY
+    label: str = ''
+    type: object = ui.label
+
+    def __post_init__(self):
+        Field.__post_init__(self)
+
+    def create(self, element_row, data_row, event_handlers=None, **kwargs):
+        self.create_row_editor_element(element_row, data_row, event_handlers)
+
+    def create_row_editor_element(self, element_row, data_row, event_handlers=None, **kwargs):
+        element = self.type(self.label)
+
+        return element
 
 @dataclass
 class Value(Relation):
@@ -189,7 +205,10 @@ class Value(Relation):
         self.model = get_class_by_column(self.col)
         self.col_prop = get_prop_by_column(self.col, self.model)
 
-    def create_element(self, element_row, data_row, event_handlers=None):
+    def create(self, element_row, data_row, event_handlers=None, **kwargs):
+        self.create_row_editor_element(element_row, data_row, event_handlers)
+
+    def create_row_editor_element(self, element_row, data_row, event_handlers=None, **kwargs):
         element = self.type(self.label)
         if self.autofill:
             element.props('autocomplete="new-password"')
@@ -275,7 +294,7 @@ class RelationPaired(Relation, context.FieldList):  # 1:1 relationship
     def get_backref(self, model):
         self.rel_attr = get_backref(model, self.model)
 
-    def create_element(self, element_row, data_row, backref=None):
+    def create(self, element_row, data_row, backref=None, **kwargs):
         if backref:
             self.get_backref(backref)
         if getattr(data_row, self.rel_attr) is None:
@@ -283,6 +302,9 @@ class RelationPaired(Relation, context.FieldList):  # 1:1 relationship
             setattr(data_row, self.rel_attr, att_item)
         if self.event_handlers:
             self.add_handlers(element, self.event_handlers)
+
+    def create_row_editor_element(self, element_row, data_row, backref=None, **kwargs):
+        pass
 
 
 @dataclass
@@ -297,7 +319,10 @@ class RelationSingle(FilterableField):  # m:1 relationship
     def get_backref(self, model):
         self.rel_attr = get_backref(model, self.model)
 
-    def create_element(self, element_row, data_row, session, backref=None, event_handlers=None):
+    def create(self, element_row, data_row, session=None, backref=None, event_handlers=None, **kwargs):
+        self.create_row_editor_element(element_row, data_row, session, backref, event_handlers)
+
+    def create_row_editor_element(self, element_row, data_row, session=None, backref=None, event_handlers=None, **kwargs):
         if backref:
             self.get_backref(backref)
         element = ui.select(label=self.label, with_input=True, options={})
@@ -354,12 +379,16 @@ class RelationList(FilterableField, context.FieldList):  # m:m relationship
                                           self.model,
                                           field_list=self,
                                           session=session,
-                                          stmt=stmt,
-                                          parent=data_item).classes('on-right')
+                                          filter_stmt=stmt,
+                                          parent_row=data_item).classes('on-right')
 
-    def create_element(self, element_row, data_row, session, backref=None, parent_element=None):
+    def create(self, element_row, data_row, session=None, backref=None, parent_element=None, **kwargs):
         if backref:
-            get_backref(backref)
+            self.get_backref(backref)
+
+    def create_row_editor_element(self, element_row, data_row, session=None, backref=None, parent_element=None, **kwargs):
+        if backref:
+            self.get_backref(backref)
 
         ChipToggle(self.label,
                    color='LightGray',
